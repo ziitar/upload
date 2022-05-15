@@ -73,6 +73,7 @@ React.render(<Upload />, container);
 |onSuccess | function | | success callback |
 |onProgress | function || progress callback, only for modern browsers|
 |beforeUpload| function |null| before upload check, return false or a rejected Promise will stop upload, only for modern browsers|
+|beforeMultipleUpload| function |null| when 'multiple' is true and before upload check, return false or a rejected Promise will stop upload, just be called once, only for modern browsers|
 |customRequest | function | null | provide an override for the default xhr behavior for additional customization|
 |withCredentials | boolean | false | ajax upload with cookie send |
 |openFileDialogOnClick | boolean | true | useful for drag only upload as it does not trigger on enter key or click event |
