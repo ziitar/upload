@@ -31,6 +31,7 @@ class AjaxUploader extends Component {
     ]),
     headers: PropTypes.object,
     beforeUpload: PropTypes.func,
+    beforeMultipleUpload: PropTypes.func,
     customRequest: PropTypes.func,
     onProgress: PropTypes.func,
     withCredentials: PropTypes.bool,
@@ -44,7 +45,14 @@ class AjaxUploader extends Component {
 
   onChange = e => {
     const files = e.target.files;
-    this.uploadFiles(files);
+    const { directory, accept } = this.props;
+    if (directory) {
+      // fixed file uploading by clicking in folder mode without accept filtering files
+      const postFiles = Array.prototype.slice.call(files);
+      this.uploadFiles(postFiles.filter((file) => attrAccept(file, accept)));
+    } else {
+      this.uploadFiles(files);
+    }
     this.reset();
   }
 
@@ -100,15 +108,56 @@ class AjaxUploader extends Component {
   }
 
   uploadFiles = (files) => {
+    const { beforeMultipleUpload, multiple } = this.props;
     const postFiles = Array.prototype.slice.call(files);
-    postFiles
-      .map(file => {
-        file.uid = getUid();
-        return file;
-      })
-      .forEach(file => {
+    const fileListCopy = postFiles.map(file => {
+      file.uid = getUid();
+      return file;
+    });
+    if (multiple && beforeMultipleUpload) {
+      // add beforeMultipleUpload method
+      const before = beforeMultipleUpload(fileListCopy);
+      if (before && typeof before !== 'boolean' && before.then) {
+        before
+          .then(processedFileList => {
+            if (processedFileList) {
+              const fileList = Array.prototype.slice.call(processedFileList);
+              if (
+                fileList.every(file => {
+                  const processedFileType = Object.prototype.toString.call(file);
+                  return (
+                    processedFileType === '[object File]' || processedFileType === '[object Blob]'
+                  );
+                })
+              ) {
+                fileList.forEach(file => {
+                  this.upload(file, fileList);
+                });
+              } else {
+                console && console.warn(`${processedFileList} most be a RcFile type list`); // eslint-disable-line
+                fileListCopy.forEach(file => {
+                  this.upload(file, fileListCopy);
+                });
+              }
+            } else {
+              fileListCopy.forEach(file => {
+                this.upload(file, fileListCopy);
+              });
+            }
+          })
+          .catch(e => {
+            console && console.error(e); // eslint-disable-line
+          });
+      } else if (before !== false) {
+        fileListCopy.forEach(file => {
+          this.upload(file, fileListCopy);
+        });
+      }
+    } else {
+      fileListCopy.forEach(file => {
         this.upload(file, postFiles);
       });
+    }
   };
 
   upload(file, fileList) {
